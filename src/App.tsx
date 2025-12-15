@@ -30,8 +30,11 @@ const TICK_MS = 180
 const SHOOT_COOLDOWN_MS = 900
 const CHICKEN_DISABLE_MS = 4500
 const WOLF_STEP_MS = 240
-const EGG_DROP_CHANCE = 0.025
-const BASE_SPEED = 0.45
+const EGG_SPEED = 0.45
+const MIN_SPAWN_MS = 10000
+const MAX_SPAWN_MS = 20000
+
+const nextSpawnDelay = () => MIN_SPAWN_MS + Math.random() * (MAX_SPAWN_MS - MIN_SPAWN_MS)
 
 const initialChickens = (): Chicken[] => {
   const list: Chicken[] = []
@@ -65,6 +68,7 @@ function App() {
   const [droppedEggs, setDroppedEggs] = useState(0)
   const [gameOver, setGameOver] = useState(false)
   const [reloadUntil, setReloadUntil] = useState<number>(0)
+  const [nextEggSpawnAt, setNextEggSpawnAt] = useState(() => performance.now() + nextSpawnDelay())
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -97,32 +101,30 @@ function App() {
           }
         })
 
-        const spawned: Egg[] = []
-        chickens.forEach((chicken) => {
-          if (chicken.cooldown > 0 || Math.random() > EGG_DROP_CHANCE) return
+        let spawnEgg: Egg | null = null
 
-          const hasRecentEgg = survivors.some(
-            (egg) => egg.side === chicken.side && egg.row === chicken.row && egg.progress < 0.5,
-          )
-          if (hasRecentEgg) return
+        if (!gameOver && performance.now() >= nextEggSpawnAt) {
+          const available = chickens.filter((chicken) => chicken.cooldown <= 0)
+          if (available.length) {
+            const chicken = available[Math.floor(Math.random() * available.length)]
+            const startProgress = (chicken.slot + 1) / (CHICKENS_PER_ROW + 1)
+            spawnEgg = {
+              id: `${chicken.id}-${Date.now()}-${Math.random().toFixed(4)}`,
+              side: chicken.side,
+              row: chicken.row,
+              progress: startProgress,
+              speed: EGG_SPEED,
+            }
+          }
+          setNextEggSpawnAt(performance.now() + nextSpawnDelay())
+        }
 
-          const slotFactor = CHICKENS_PER_ROW - chicken.slot
-          const speed = (BASE_SPEED / slotFactor) * 0.9
-          spawned.push({
-            id: `${chicken.id}-${Date.now()}-${Math.random().toFixed(4)}`,
-            side: chicken.side,
-            row: chicken.row,
-            progress: 0,
-            speed,
-          })
-        })
-
-        return [...survivors, ...spawned]
+        return spawnEgg ? [...survivors, spawnEgg] : survivors
       })
     }, TICK_MS)
 
     return () => clearInterval(timer)
-  }, [chickens, wolfPosition])
+  }, [chickens, wolfPosition, gameOver, nextEggSpawnAt])
 
   useEffect(() => {
     if (droppedEggs >= 3) {
@@ -209,6 +211,7 @@ function App() {
     setDroppedEggs(0)
     setGameOver(false)
     setReloadUntil(0)
+    setNextEggSpawnAt(performance.now() + nextSpawnDelay())
   }
 
   const reloadProgress = (() => {
@@ -278,7 +281,7 @@ function App() {
       </div>
 
       <div className="instructions">
-        <p>Chickens drop eggs randomly. The farther a chicken is from the exit, the longer its eggs take to reach the wolf.</p>
+        <p>Chickens drop eggs one at a time with long pauses. The farther a chicken is from the exit, the longer its eggs take to reach the wolf.</p>
         <ul>
           <li>The wolf moves automatically toward the next egg that will drop.</li>
           <li>Click a chicken to scare it. Scared chickens stop dropping eggs while recovering.</li>
