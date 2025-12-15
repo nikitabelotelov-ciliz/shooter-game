@@ -9,6 +9,7 @@ interface Chicken {
   row: number
   slot: number
   cooldown: number
+  active: boolean
 }
 
 interface Egg {
@@ -47,10 +48,14 @@ const initialChickens = (): Chicken[] => {
           row,
           slot,
           cooldown: 0,
+          active: false,
         })
       }
     }
   })
+  if (list.length) {
+    list[0].active = true
+  }
   return list
 }
 
@@ -69,6 +74,7 @@ function App() {
   const [gameOver, setGameOver] = useState(false)
   const [reloadUntil, setReloadUntil] = useState<number>(0)
   const [nextEggSpawnAt, setNextEggSpawnAt] = useState(() => performance.now() + nextSpawnDelay())
+  const [nextChickenEnableAt, setNextChickenEnableAt] = useState(() => performance.now() + nextSpawnDelay())
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -104,7 +110,7 @@ function App() {
         let spawnEgg: Egg | null = null
 
         if (!gameOver && performance.now() >= nextEggSpawnAt) {
-          const available = chickens.filter((chicken) => chicken.cooldown <= 0)
+          const available = chickens.filter((chicken) => chicken.active && chicken.cooldown <= 0)
           if (available.length) {
             const chicken = available[Math.floor(Math.random() * available.length)]
             const startProgress = (chicken.slot + 1) / (CHICKENS_PER_ROW + 1)
@@ -125,6 +131,29 @@ function App() {
 
     return () => clearInterval(timer)
   }, [chickens, wolfPosition, gameOver, nextEggSpawnAt])
+
+  useEffect(() => {
+    if (gameOver) return
+    const timer = setInterval(() => {
+      let enabledOne = false
+      setChickens((prev) => {
+        if (performance.now() < nextChickenEnableAt) return prev
+        const inactive = prev.filter((chicken) => !chicken.active)
+        if (!inactive.length) return prev
+        const chosen = inactive[Math.floor(Math.random() * inactive.length)]
+        enabledOne = true
+        return prev.map((chicken) =>
+          chicken.id === chosen.id ? { ...chicken, active: true, cooldown: 0 } : chicken,
+        )
+      })
+
+      if (enabledOne) {
+        setNextChickenEnableAt(performance.now() + nextSpawnDelay())
+      }
+    }, TICK_MS)
+
+    return () => clearInterval(timer)
+  }, [nextChickenEnableAt, gameOver])
 
   useEffect(() => {
     if (droppedEggs >= 3) {
@@ -212,6 +241,7 @@ function App() {
     setGameOver(false)
     setReloadUntil(0)
     setNextEggSpawnAt(performance.now() + nextSpawnDelay())
+    setNextChickenEnableAt(performance.now() + nextSpawnDelay())
   }
 
   const reloadProgress = (() => {
@@ -281,7 +311,7 @@ function App() {
       </div>
 
       <div className="instructions">
-        <p>Chickens drop eggs one at a time with long pauses. The farther a chicken is from the exit, the longer its eggs take to reach the wolf.</p>
+        <p>Chickens join the line one by one every 10–20 seconds and drop eggs with long pauses. The farther a chicken is from the exit, the longer its eggs take to reach the wolf.</p>
         <ul>
           <li>The wolf moves automatically toward the next egg that will drop.</li>
           <li>Click a chicken to scare it. Scared chickens stop dropping eggs while recovering.</li>
@@ -327,10 +357,12 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
               .map((chicken) => (
                 <button
                   key={chicken.id}
-                  className={`chicken ${chicken.cooldown > 0 ? 'sleep' : ''}`}
+                  className={`chicken ${!chicken.active ? 'hidden' : ''} ${
+                    chicken.cooldown > 0 ? 'sleep' : ''
+                  }`}
                   onClick={() => onShootChicken(chicken)}
                   title={chicken.cooldown > 0 ? 'Recovering' : 'Active'}
-                >
+                  >
                   🐔
                 </button>
               ))}

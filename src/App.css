@@ -151,6 +151,10 @@
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
 }
 
+.chicken.hidden {
+  display: none;
+}
+
 .chicken.sleep {
   opacity: 0.45;
   border-color: #888fb2;
