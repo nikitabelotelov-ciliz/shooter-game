@@ -156,6 +156,12 @@
   border-color: #888fb2;
 }
 
+.chicken.empty {
+  opacity: 0.4;
+  cursor: default;
+  border-style: dashed;
+}
+
 .chicken:hover {
   transform: translateY(-3px);
 }

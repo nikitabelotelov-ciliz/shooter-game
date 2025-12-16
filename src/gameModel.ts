@@ -1,0 +1,282 @@
+export type Side = 'left' | 'right'
+
+export interface Position {
+  row: number
+  col: number
+}
+
+export interface Chicken {
+  id: string
+  side: Side
+  line: number
+  seat: number
+  nextEggMs: number
+}
+
+export interface Egg {
+  id: string
+  side: Side
+  line: number
+  progress: number
+  travelDistance: number
+}
+
+export interface GameState {
+  chickens: Chicken[]
+  eggs: Egg[]
+  wolfPosition: Position
+  wolfTarget: Position
+  caughtEggs: number
+  droppedEggs: number
+  gameOver: boolean
+}
+
+const LINES_PER_SIDE = 3
+const SEATS_PER_LINE = 3
+const MIN_INITIAL_CHICKENS = 2
+const MAX_INITIAL_CHICKENS = 3
+const EGG_SPEED_UNITS_PER_SECOND = 0.25
+const EGG_COOLDOWN_RANGE_MS: [number, number] = [5000, 10000]
+const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
+const MAX_DROPPED_EGGS = 3
+const WOLF_STEP_MS = 240
+const MIN_TRAVEL_DISTANCE = 0.45
+const MAX_TRAVEL_DISTANCE = 1
+
+const randomBetween = (min: number, max: number) => Math.random() * (max - min) + min
+const randomDelay = (range: [number, number]) => randomBetween(range[0], range[1])
+
+const travelDistanceForSeat = (seat: number) => {
+  if (SEATS_PER_LINE <= 1) return MAX_TRAVEL_DISTANCE
+  const ratio = seat / (SEATS_PER_LINE - 1)
+  return MIN_TRAVEL_DISTANCE + (MAX_TRAVEL_DISTANCE - MIN_TRAVEL_DISTANCE) * ratio
+}
+
+const catchPositionForLine = (side: Side, line: number): Position => ({
+  row: line,
+  col: side === 'left' ? 0 : 2,
+})
+
+interface SeatPosition {
+  side: Side
+  line: number
+  seat: number
+}
+
+export class GameModel {
+  private chickens: Chicken[] = []
+
+  private eggs: Egg[] = []
+
+  private wolfPosition: Position = { row: 1, col: 1 }
+
+  private wolfTarget: Position = { row: 1, col: 1 }
+
+  private caughtEggs = 0
+
+  private droppedEggs = 0
+
+  private gameOver = false
+
+  private lastUpdate = performance.now()
+
+  private nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
+
+  private wolfMoveAccumulator = 0
+
+  constructor() {
+    this.seedInitialChickens()
+  }
+
+  reset() {
+    this.chickens = []
+    this.eggs = []
+    this.wolfPosition = { row: 1, col: 1 }
+    this.wolfTarget = { row: 1, col: 1 }
+    this.caughtEggs = 0
+    this.droppedEggs = 0
+    this.gameOver = false
+    this.wolfMoveAccumulator = 0
+    this.nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
+    this.seedInitialChickens()
+    this.lastUpdate = performance.now()
+  }
+
+  removeChicken(id: string) {
+    this.chickens = this.chickens.filter((chicken) => chicken.id !== id)
+  }
+
+  removeEgg(id: string) {
+    this.eggs = this.eggs.filter((egg) => egg.id !== id)
+  }
+
+  update(now: number = performance.now()): GameState {
+    const delta = Math.max(0, Math.min(1000, now - this.lastUpdate))
+    this.lastUpdate = now
+
+    if (!this.gameOver) {
+      this.updateChickenSpawns(delta)
+      this.updateChickenEggs(delta)
+      this.updateEggs(delta)
+      this.updateWolf(delta)
+    }
+
+    return this.getState()
+  }
+
+  getState(): GameState {
+    return {
+      chickens: this.chickens.map((chicken) => ({ ...chicken })),
+      eggs: this.eggs.map((egg) => ({ ...egg })),
+      wolfPosition: { ...this.wolfPosition },
+      wolfTarget: { ...this.wolfTarget },
+      caughtEggs: this.caughtEggs,
+      droppedEggs: this.droppedEggs,
+      gameOver: this.gameOver,
+    }
+  }
+
+  private seedInitialChickens() {
+    const totalToSpawn = Math.floor(randomBetween(MIN_INITIAL_CHICKENS, MAX_INITIAL_CHICKENS + 1))
+    for (let i = 0; i < totalToSpawn; i += 1) {
+      this.spawnRandomChicken()
+    }
+  }
+
+  private spawnRandomChicken() {
+    const seat = this.pickRandomFreeSeat()
+    if (!seat) return
+
+    this.chickens.push({
+      id: `${seat.side}-${seat.line}-${seat.seat}-${Date.now()}-${Math.random().toFixed(4)}`,
+      side: seat.side,
+      line: seat.line,
+      seat: seat.seat,
+      nextEggMs: randomDelay(EGG_COOLDOWN_RANGE_MS),
+    })
+  }
+
+  private pickRandomFreeSeat(): SeatPosition | undefined {
+    const occupied = new Set<string>(this.chickens.map((chicken) => `${chicken.side}-${chicken.line}-${chicken.seat}`))
+    const openSeats: SeatPosition[] = []
+
+    ;(['left', 'right'] as Side[]).forEach((side) => {
+      for (let line = 0; line < LINES_PER_SIDE; line += 1) {
+        for (let seat = 0; seat < SEATS_PER_LINE; seat += 1) {
+          const key = `${side}-${line}-${seat}`
+          if (!occupied.has(key)) {
+            openSeats.push({ side, line, seat })
+          }
+        }
+      }
+    })
+
+    if (!openSeats.length) return undefined
+    const index = Math.floor(Math.random() * openSeats.length)
+    return openSeats[index]
+  }
+
+  private updateChickenSpawns(delta: number) {
+    this.nextChickenSpawnMs -= delta
+    if (this.nextChickenSpawnMs > 0) return
+
+    this.spawnRandomChicken()
+    this.nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
+  }
+
+  private updateChickenEggs(delta: number) {
+    this.chickens.forEach((chicken) => {
+      chicken.nextEggMs -= delta
+      if (chicken.nextEggMs > 0) return
+
+      this.spawnEgg(chicken)
+      chicken.nextEggMs = randomDelay(EGG_COOLDOWN_RANGE_MS)
+    })
+  }
+
+  private spawnEgg(chicken: Chicken) {
+    const travelDistance = travelDistanceForSeat(chicken.seat)
+    this.eggs.push({
+      id: `${chicken.id}-egg-${Date.now()}-${Math.random().toFixed(4)}`,
+      side: chicken.side,
+      line: chicken.line,
+      progress: 0,
+      travelDistance,
+    })
+  }
+
+  private updateEggs(delta: number) {
+    const survivors: Egg[] = []
+    this.eggs.forEach((egg) => {
+      const progress = egg.progress + (delta / 1000) * EGG_SPEED_UNITS_PER_SECOND
+      if (progress >= egg.travelDistance) {
+        this.handleEggDrop(egg)
+      } else {
+        survivors.push({ ...egg, progress })
+      }
+    })
+    this.eggs = survivors
+  }
+
+  private handleEggDrop(egg: Egg) {
+    const catchPos = catchPositionForLine(egg.side, egg.line)
+    const wolfCatching =
+      this.wolfPosition.row === catchPos.row && this.wolfPosition.col === catchPos.col
+
+    if (wolfCatching) {
+      this.caughtEggs += 1
+    } else {
+      this.droppedEggs += 1
+      if (this.droppedEggs >= MAX_DROPPED_EGGS) {
+        this.gameOver = true
+      }
+    }
+  }
+
+  private updateWolf(delta: number) {
+    if (!this.eggs.length) {
+      this.wolfTarget = { row: 1, col: 1 }
+    } else {
+      let bestEgg = this.eggs[0]
+      let bestTimeLeft = this.timeToDrop(bestEgg)
+
+      this.eggs.forEach((egg) => {
+        const timeLeft = this.timeToDrop(egg)
+        if (timeLeft < bestTimeLeft) {
+          bestTimeLeft = timeLeft
+          bestEgg = egg
+        }
+      })
+
+      this.wolfTarget = catchPositionForLine(bestEgg.side, bestEgg.line)
+    }
+
+    this.wolfMoveAccumulator += delta
+    while (this.wolfMoveAccumulator >= WOLF_STEP_MS) {
+      this.wolfMoveAccumulator -= WOLF_STEP_MS
+      this.stepWolf()
+    }
+  }
+
+  private timeToDrop(egg: Egg) {
+    const remainingDistance = Math.max(0, egg.travelDistance - egg.progress)
+    return remainingDistance / EGG_SPEED_UNITS_PER_SECOND
+  }
+
+  private stepWolf() {
+    if (this.wolfPosition.row === this.wolfTarget.row && this.wolfPosition.col === this.wolfTarget.col) {
+      return
+    }
+
+    const next: Position = { ...this.wolfPosition }
+    if (next.row !== this.wolfTarget.row) {
+      next.row += next.row < this.wolfTarget.row ? 1 : -1
+    } else if (next.col !== this.wolfTarget.col) {
+      next.col += next.col < this.wolfTarget.col ? 1 : -1
+    }
+
+    this.wolfPosition = next
+  }
+}
+
+export { LINES_PER_SIDE, SEATS_PER_LINE, catchPositionForLine }
