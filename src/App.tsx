@@ -31,7 +31,7 @@ const SHOOT_COOLDOWN_MS = 900
 const CHICKEN_DISABLE_MS = 4500
 const WOLF_STEP_MS = 240
 const EGG_DROP_CHANCE = 0.025
-const BASE_SPEED = 0.45
+const BASE_SPEED = 0.1
 
 const initialChickens = (): Chicken[] => {
   const list: Chicken[] = []
