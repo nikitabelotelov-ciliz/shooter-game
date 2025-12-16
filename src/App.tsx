@@ -1,178 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import type { Chicken, Egg, GameState, Side } from './gameModel'
+import { GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
 
-type Side = 'left' | 'right'
-
-interface Chicken {
-  id: string
-  side: Side
-  row: number
-  slot: number
-  cooldown: number
-}
-
-interface Egg {
-  id: string
-  side: Side
-  row: number
-  progress: number
-  speed: number
-}
-
-interface Position {
-  row: number
-  col: number
-}
-
-const ROWS = 3
-const CHICKENS_PER_ROW = 3
-const TICK_MS = 180
+const FRAME_MS = 1000 / 30
 const SHOOT_COOLDOWN_MS = 900
-const CHICKEN_DISABLE_MS = 4500
-const WOLF_STEP_MS = 240
-const EGG_DROP_CHANCE = 0.025
-const BASE_SPEED = 0.1
-
-const initialChickens = (): Chicken[] => {
-  const list: Chicken[] = []
-  ;(['left', 'right'] as Side[]).forEach((side) => {
-    for (let row = 0; row < ROWS; row += 1) {
-      for (let slot = 0; slot < CHICKENS_PER_ROW; slot += 1) {
-        list.push({
-          id: `${side}-${row}-${slot}`,
-          side,
-          row,
-          slot,
-          cooldown: 0,
-        })
-      }
-    }
-  })
-  return list
-}
-
-const catchPositionForLine = (side: Side, row: number): Position => ({
-  row,
-  col: side === 'left' ? 0 : 2,
-})
 
 function App() {
-  const [chickens, setChickens] = useState<Chicken[]>(() => initialChickens())
-  const [eggs, setEggs] = useState<Egg[]>([])
-  const [wolfPosition, setWolfPosition] = useState<Position>({ row: 1, col: 1 })
-  const [wolfTarget, setWolfTarget] = useState<Position>({ row: 1, col: 1 })
-  const [caughtEggs, setCaughtEggs] = useState(0)
-  const [droppedEggs, setDroppedEggs] = useState(0)
-  const [gameOver, setGameOver] = useState(false)
+  const gameModelRef = useRef(new GameModel())
+  const [gameState, setGameState] = useState<GameState>(() => gameModelRef.current.getState())
   const [reloadUntil, setReloadUntil] = useState<number>(0)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setChickens((prev) =>
-        prev.map((chicken) => ({
-          ...chicken,
-          cooldown: Math.max(0, chicken.cooldown - TICK_MS),
-        })),
-      )
-
-      setEggs((prev) => {
-        const updated = prev.map((egg) => ({
-          ...egg,
-          progress: egg.progress + egg.speed * (TICK_MS / 1000),
-        }))
-
-        const survivors: Egg[] = []
-        updated.forEach((egg) => {
-          if (egg.progress >= 1) {
-            const guard = catchPositionForLine(egg.side, egg.row)
-            const wolfCatching = wolfPosition.row === guard.row && wolfPosition.col === guard.col
-
-            if (wolfCatching) {
-              setCaughtEggs((count) => count + 1)
-            } else {
-              setDroppedEggs((count) => count + 1)
-            }
-          } else {
-            survivors.push(egg)
-          }
-        })
-
-        const spawned: Egg[] = []
-        chickens.forEach((chicken) => {
-          if (chicken.cooldown > 0 || Math.random() > EGG_DROP_CHANCE) return
-
-          const hasRecentEgg = survivors.some(
-            (egg) => egg.side === chicken.side && egg.row === chicken.row && egg.progress < 0.5,
-          )
-          if (hasRecentEgg) return
-
-          const slotFactor = CHICKENS_PER_ROW - chicken.slot
-          const speed = (BASE_SPEED / slotFactor) * 0.9
-          spawned.push({
-            id: `${chicken.id}-${Date.now()}-${Math.random().toFixed(4)}`,
-            side: chicken.side,
-            row: chicken.row,
-            progress: 0,
-            speed,
-          })
-        })
-
-        return [...survivors, ...spawned]
-      })
-    }, TICK_MS)
-
-    return () => clearInterval(timer)
-  }, [chickens, wolfPosition])
-
-  useEffect(() => {
-    if (droppedEggs >= 3) {
-      setGameOver(true)
-    }
-  }, [droppedEggs])
-
-  useEffect(() => {
-    if (gameOver) return
-    if (!eggs.length) {
-      setWolfTarget({ row: 1, col: 1 })
-      return
+    const tick = () => {
+      const state = gameModelRef.current.update()
+      setGameState(state)
     }
 
-    let bestEgg = eggs[0]
-    let bestTime = (1 - eggs[0].progress) / eggs[0].speed
-
-    eggs.forEach((egg) => {
-      const timeLeft = (1 - egg.progress) / egg.speed
-      if (timeLeft < bestTime) {
-        bestTime = timeLeft
-        bestEgg = egg
-      }
-    })
-
-    setWolfTarget(catchPositionForLine(bestEgg.side, bestEgg.row))
-  }, [eggs, gameOver])
-
-  useEffect(() => {
-    if (gameOver) return
-    const interval = setInterval(() => {
-      setWolfPosition((pos) => {
-        if (pos.row === wolfTarget.row && pos.col === wolfTarget.col) return pos
-
-        const next: Position = { ...pos }
-        if (pos.row !== wolfTarget.row) {
-          next.row += pos.row < wolfTarget.row ? 1 : -1
-        } else if (pos.col !== wolfTarget.col) {
-          next.col += pos.col < wolfTarget.col ? 1 : -1
-        }
-        return next
-      })
-    }, WOLF_STEP_MS)
-
+    tick()
+    const interval = setInterval(tick, FRAME_MS)
     return () => clearInterval(interval)
-  }, [wolfTarget, gameOver])
+  }, [])
 
   const gridPositions = useMemo(() => {
-    const positions: Position[] = []
-    for (let row = 0; row < ROWS; row += 1) {
+    const positions = [] as { row: number; col: number }[]
+    for (let row = 0; row < LINES_PER_SIDE; row += 1) {
       for (let col = 0; col < 3; col += 1) {
         positions.push({ row, col })
       }
@@ -181,33 +33,28 @@ function App() {
   }, [])
 
   const handleShootChicken = (chicken: Chicken) => {
-    if (gameOver) return
+    if (gameState.gameOver) return
     const now = performance.now()
     if (now < reloadUntil) return
 
-    setChickens((prev) =>
-      prev.map((item) => (item.id === chicken.id ? { ...item, cooldown: CHICKEN_DISABLE_MS } : item)),
-    )
+    gameModelRef.current.removeChicken(chicken.id)
     setReloadUntil(now + SHOOT_COOLDOWN_MS)
+    setGameState(gameModelRef.current.getState())
   }
 
   const handleShootEgg = (egg: Egg) => {
-    if (gameOver) return
+    if (gameState.gameOver) return
     const now = performance.now()
     if (now < reloadUntil) return
 
-    setEggs((prev) => prev.filter((item) => item.id !== egg.id))
+    gameModelRef.current.removeEgg(egg.id)
     setReloadUntil(now + SHOOT_COOLDOWN_MS)
+    setGameState(gameModelRef.current.getState())
   }
 
   const handleReset = () => {
-    setChickens(initialChickens())
-    setEggs([])
-    setWolfPosition({ row: 1, col: 1 })
-    setWolfTarget({ row: 1, col: 1 })
-    setCaughtEggs(0)
-    setDroppedEggs(0)
-    setGameOver(false)
+    gameModelRef.current.reset()
+    setGameState(gameModelRef.current.getState())
     setReloadUntil(0)
   }
 
@@ -226,8 +73,10 @@ function App() {
           <p className="subtitle">Indirect control: shoot chickens, guide the wolf, save the eggs.</p>
         </div>
         <div className="stats">
-          <div className="stat">Caught eggs: {caughtEggs}</div>
-          <div className={`stat ${droppedEggs >= 2 ? 'danger' : ''}`}>Dropped eggs: {droppedEggs}/3</div>
+          <div className="stat">Caught eggs: {gameState.caughtEggs}</div>
+          <div className={`stat ${gameState.droppedEggs >= 2 ? 'danger' : ''}`}>
+            Dropped eggs: {gameState.droppedEggs}/3
+          </div>
           <div className="reload">
             <span>Reload</span>
             <div className="bar">
@@ -240,13 +89,15 @@ function App() {
         </div>
       </header>
 
-      {gameOver && <div className="banner">Three eggs hit the floor. Tap Restart to try again!</div>}
+      {gameState.gameOver && (
+        <div className="banner">Three eggs hit the floor. Tap Restart to try again!</div>
+      )}
 
       <div className="arena">
         <ConveyorColumn
           side="left"
-          chickens={chickens.filter((c) => c.side === 'left')}
-          eggs={eggs.filter((egg) => egg.side === 'left')}
+          chickens={gameState.chickens.filter((c) => c.side === 'left')}
+          eggs={gameState.eggs.filter((egg) => egg.side === 'left')}
           onShootChicken={handleShootChicken}
           onShootEgg={handleShootEgg}
         />
@@ -254,8 +105,8 @@ function App() {
         <div className="wolf-zone">
           <div className="grid">
             {gridPositions.map((pos) => {
-              const isWolf = wolfPosition.row === pos.row && wolfPosition.col === pos.col
-              const isTarget = wolfTarget.row === pos.row && wolfTarget.col === pos.col
+              const isWolf = gameState.wolfPosition.row === pos.row && gameState.wolfPosition.col === pos.col
+              const isTarget = gameState.wolfTarget.row === pos.row && gameState.wolfTarget.col === pos.col
               return (
                 <div
                   key={`${pos.row}-${pos.col}`}
@@ -270,20 +121,20 @@ function App() {
 
         <ConveyorColumn
           side="right"
-          chickens={chickens.filter((c) => c.side === 'right')}
-          eggs={eggs.filter((egg) => egg.side === 'right')}
+          chickens={gameState.chickens.filter((c) => c.side === 'right')}
+          eggs={gameState.eggs.filter((egg) => egg.side === 'right')}
           onShootChicken={handleShootChicken}
           onShootEgg={handleShootEgg}
         />
       </div>
 
       <div className="instructions">
-        <p>Chickens drop eggs randomly. The farther a chicken is from the exit, the longer its eggs take to reach the wolf.</p>
+        <p>Chickens perch on six conveyor lines with seats closer or farther from the drop point.</p>
         <ul>
-          <li>The wolf moves automatically toward the next egg that will drop.</li>
-          <li>Click a chicken to scare it. Scared chickens stop dropping eggs while recovering.</li>
-          <li>Click an egg to shoot it if the wolf cannot get there in time.</li>
-          <li>Three dropped eggs end the run. Keep the wolf close to the busiest lines!</li>
+          <li>New chickens occupy free seats every few seconds; click a chicken to clear its spot.</li>
+          <li>Each chicken drops eggs every 5-10 seconds. The closer the seat, the shorter the fall.</li>
+          <li>The wolf moves automatically toward the egg that will drop first.</li>
+          <li>Click an egg to shoot it if the wolf cannot get there in time. Three dropped eggs end the run.</li>
         </ul>
       </div>
     </div>
@@ -300,16 +151,16 @@ interface ConveyorProps {
 
 function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: ConveyorProps) {
   const rows: Chicken[][] = useMemo(() => {
-    const grouped: Chicken[][] = Array.from({ length: ROWS }, () => [])
+    const grouped: Chicken[][] = Array.from({ length: LINES_PER_SIDE }, () => [])
     chickens.forEach((chicken) => {
-      grouped[chicken.row].push(chicken)
+      grouped[chicken.line].push(chicken)
     })
     return grouped
   }, [chickens])
 
   const eggsByRow = useMemo(() => {
-    const grouped: Egg[][] = Array.from({ length: ROWS }, () => [])
-    eggs.forEach((egg) => grouped[egg.row].push(egg))
+    const grouped: Egg[][] = Array.from({ length: LINES_PER_SIDE }, () => [])
+    eggs.forEach((egg) => grouped[egg.line].push(egg))
     return grouped
   }, [eggs])
 
@@ -319,23 +170,26 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
         <div className="conveyor" key={`${side}-${rowIndex}`}>
           <div className="track" />
           <div className="chickens">
-            {rowChickens
-              .sort((a, b) => a.slot - b.slot)
-              .map((chicken) => (
+            {Array.from({ length: SEATS_PER_LINE }).map((_, seatIndex) => {
+              const chicken = rowChickens.find((item) => item.seat === seatIndex)
+              return (
                 <button
-                  key={chicken.id}
-                  className={`chicken ${chicken.cooldown > 0 ? 'sleep' : ''}`}
-                  onClick={() => onShootChicken(chicken)}
-                  title={chicken.cooldown > 0 ? 'Recovering' : 'Active'}
+                  key={`${side}-${rowIndex}-${seatIndex}`}
+                  className={`chicken ${!chicken ? 'empty' : ''}`}
+                  onClick={() => chicken && onShootChicken(chicken)}
+                  title={chicken ? 'Remove chicken' : 'Empty seat'}
+                  disabled={!chicken}
                 >
-                  🐔
+                  {chicken ? '🐔' : '⬜️'}
                 </button>
-              ))}
+              )
+            })}
           </div>
 
           <div className="eggs">
             {eggsByRow[rowIndex].map((egg) => {
-              const left = side === 'left' ? `${egg.progress * 100}%` : `${(1 - egg.progress) * 100}%`
+              const pathProgress = Math.min(1, egg.progress / egg.travelDistance)
+              const left = side === 'left' ? `${pathProgress * 100}%` : `${(1 - pathProgress) * 100}%`
               return (
                 <button
                   key={egg.id}
