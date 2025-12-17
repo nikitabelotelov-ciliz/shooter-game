@@ -19,6 +19,7 @@ export interface Egg {
   line: number
   progress: number
   travelDistance: number
+  startPosition: number
 }
 
 export interface GameState {
@@ -40,16 +41,25 @@ const EGG_COOLDOWN_RANGE_MS: [number, number] = [5000, 10000]
 const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
-const MIN_TRAVEL_DISTANCE = 0.45
-const MAX_TRAVEL_DISTANCE = 1
+const DROP_POSITION: Record<Side, number> = { left: 1, right: 0 }
+const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.75, 0.5]
 
 const randomBetween = (min: number, max: number) => Math.random() * (max - min) + min
 const randomDelay = (range: [number, number]) => randomBetween(range[0], range[1])
 
-const travelDistanceForSeat = (seat: number) => {
-  if (SEATS_PER_LINE <= 1) return MAX_TRAVEL_DISTANCE
-  const ratio = seat / (SEATS_PER_LINE - 1)
-  return MIN_TRAVEL_DISTANCE + (MAX_TRAVEL_DISTANCE - MIN_TRAVEL_DISTANCE) * ratio
+const normalizedSeatIndex = (side: Side, seat: number) =>
+  side === 'left' ? seat : SEATS_PER_LINE - 1 - seat
+
+const travelDistanceForSeat = (side: Side, seat: number) => {
+  const indexFromDrop = normalizedSeatIndex(side, seat)
+  const boundedIndex = Math.min(SEAT_TRAVEL_RATIOS.length - 1, Math.max(0, indexFromDrop))
+  return SEAT_TRAVEL_RATIOS[boundedIndex]
+}
+
+const spawnPositionForSeat = (side: Side, seat: number) => {
+  const dropPosition = DROP_POSITION[side]
+  const distance = travelDistanceForSeat(side, seat)
+  return dropPosition === 1 ? 1 - distance : distance
 }
 
 const catchPositionForLine = (side: Side, line: number): Position => ({
@@ -195,13 +205,15 @@ export class GameModel {
   }
 
   private spawnEgg(chicken: Chicken) {
-    const travelDistance = travelDistanceForSeat(chicken.seat)
+    const travelDistance = travelDistanceForSeat(chicken.side, chicken.seat)
+    const startPosition = spawnPositionForSeat(chicken.side, chicken.seat)
     this.eggs.push({
       id: `${chicken.id}-egg-${Date.now()}-${Math.random().toFixed(4)}`,
       side: chicken.side,
       line: chicken.line,
       progress: 0,
       travelDistance,
+      startPosition,
     })
   }
 

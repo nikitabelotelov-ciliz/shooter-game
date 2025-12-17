@@ -114,13 +114,26 @@
   padding: 12px;
   min-height: 110px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.conveyor.right {
+  flex-direction: row-reverse;
+}
+
+.belt {
+  position: relative;
+  flex: 1;
+  min-height: 90px;
 }
 
 .track {
   position: absolute;
   top: 50%;
-  left: 8%;
-  right: 8%;
+  left: 6%;
+  right: 6%;
   height: 8px;
   background: linear-gradient(90deg, #3a4a5d, #182332);
   border-radius: 8px;
@@ -133,11 +146,16 @@
 
 .chickens {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
+}
+
+.conveyor.right .chickens {
+  justify-content: flex-end;
 }
 
 .chicken {
@@ -168,8 +186,8 @@
 
 .eggs {
   position: absolute;
-  left: 8%;
-  right: 8%;
+  left: 6%;
+  right: 6%;
   top: 50%;
   height: 10px;
   transform: translateY(-50%);

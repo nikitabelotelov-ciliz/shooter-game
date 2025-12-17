@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import type { Chicken, Egg, GameState, Side } from './gameModel'
 import { GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
@@ -7,20 +7,22 @@ const FRAME_MS = 1000 / 30
 const SHOOT_COOLDOWN_MS = 900
 
 function App() {
-  const gameModelRef = useRef(new GameModel())
-  const [gameState, setGameState] = useState<GameState>(() => gameModelRef.current.getState())
+  const [gameModel] = useState(() => new GameModel())
+  const [gameState, setGameState] = useState<GameState>(() => gameModel.getState())
   const [reloadUntil, setReloadUntil] = useState<number>(0)
+  const [nowMs, setNowMs] = useState(() => performance.now())
 
   useEffect(() => {
     const tick = () => {
-      const state = gameModelRef.current.update()
+      const state = gameModel.update()
       setGameState(state)
+      setNowMs(performance.now())
     }
 
     tick()
     const interval = setInterval(tick, FRAME_MS)
     return () => clearInterval(interval)
-  }, [])
+  }, [gameModel])
 
   const gridPositions = useMemo(() => {
     const positions = [] as { row: number; col: number }[]
@@ -37,9 +39,9 @@ function App() {
     const now = performance.now()
     if (now < reloadUntil) return
 
-    gameModelRef.current.removeChicken(chicken.id)
+    gameModel.removeChicken(chicken.id)
     setReloadUntil(now + SHOOT_COOLDOWN_MS)
-    setGameState(gameModelRef.current.getState())
+    setGameState(gameModel.getState())
   }
 
   const handleShootEgg = (egg: Egg) => {
@@ -47,23 +49,22 @@ function App() {
     const now = performance.now()
     if (now < reloadUntil) return
 
-    gameModelRef.current.removeEgg(egg.id)
+    gameModel.removeEgg(egg.id)
     setReloadUntil(now + SHOOT_COOLDOWN_MS)
-    setGameState(gameModelRef.current.getState())
+    setGameState(gameModel.getState())
   }
 
   const handleReset = () => {
-    gameModelRef.current.reset()
-    setGameState(gameModelRef.current.getState())
+    gameModel.reset()
+    setGameState(gameModel.getState())
     setReloadUntil(0)
   }
 
-  const reloadProgress = (() => {
-    const now = performance.now()
-    if (now >= reloadUntil) return 1
-    const left = reloadUntil - now
+  const reloadProgress = useMemo(() => {
+    if (nowMs >= reloadUntil) return 1
+    const left = reloadUntil - nowMs
     return Math.max(0, 1 - left / SHOOT_COOLDOWN_MS)
-  })()
+  }, [nowMs, reloadUntil])
 
   return (
     <div className="app">
@@ -167,8 +168,7 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
   return (
     <div className={`column ${side}`}>
       {rows.map((rowChickens, rowIndex) => (
-        <div className="conveyor" key={`${side}-${rowIndex}`}>
-          <div className="track" />
+        <div className={`conveyor ${side}`} key={`${side}-${rowIndex}`}>
           <div className="chickens">
             {Array.from({ length: SEATS_PER_LINE }).map((_, seatIndex) => {
               const chicken = rowChickens.find((item) => item.seat === seatIndex)
@@ -186,22 +186,27 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
             })}
           </div>
 
-          <div className="eggs">
-            {eggsByRow[rowIndex].map((egg) => {
-              const pathProgress = Math.min(1, egg.progress / egg.travelDistance)
-              const left = side === 'left' ? `${pathProgress * 100}%` : `${(1 - pathProgress) * 100}%`
-              return (
-                <button
-                  key={egg.id}
-                  className="egg"
-                  style={{ left }}
-                  onClick={() => onShootEgg(egg)}
-                  title="Shoot egg"
-                >
-                  🥚
-                </button>
-              )
-            })}
+          <div className="belt">
+            <div className="track" />
+            <div className="eggs">
+              {eggsByRow[rowIndex].map((egg) => {
+                const pathProgress = Math.min(1, egg.progress / egg.travelDistance)
+                const dropPosition = side === 'left' ? 1 : 0
+                const position = egg.startPosition + (dropPosition - egg.startPosition) * pathProgress
+                const left = `${position * 100}%`
+                return (
+                  <button
+                    key={egg.id}
+                    className="egg"
+                    style={{ left }}
+                    onClick={() => onShootEgg(egg)}
+                    title="Shoot egg"
+                  >
+                    🥚
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       ))}
