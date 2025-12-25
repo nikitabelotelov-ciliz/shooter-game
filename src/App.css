@@ -165,6 +165,7 @@
   cursor: pointer;
   transition: transform 0.1s ease, opacity 0.2s ease;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  user-select: none;
 }
 
 .chicken.sleep {
@@ -178,10 +179,6 @@
   border-style: dashed;
 }
 
-.chicken:hover {
-  transform: translateY(-3px);
-}
-
 .eggs {
   position: absolute;
   left: 6%;
@@ -190,6 +187,7 @@
   height: 10px;
   transform: translateY(-50%);
   z-index: 1;
+  font-size: 30px;
 }
 
 .egg {
@@ -206,6 +204,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  user-select: none;
 }
 
 .egg:hover {
