@@ -8,7 +8,9 @@
 .app {
   padding: clamp(16px, 3vw, 24px);
   max-width: 1200px;
+  width: min(100%, 1200px);
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 .hud {
@@ -98,6 +100,12 @@
   border-radius: 16px;
   padding: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 100%;
+}
+
+.arena > * {
+  min-width: 0;
 }
 
 .column {
@@ -115,6 +123,7 @@
   min-height: 110px;
   overflow: hidden;
   gap: 12px;
+  min-width: 0;
 }
 
 .conveyor.right {
@@ -298,7 +307,8 @@
   .stat,
   .reload,
   .secondary {
-    flex: 1 1 45%;
+    flex: 1 1 48%;
+    min-width: 0;
   }
 
   .arena {
@@ -347,6 +357,7 @@
   .stat,
   .reload {
     min-width: unset;
+    width: 100%;
   }
 
   .reload .bar {
@@ -360,6 +371,7 @@
 
   .conveyor {
     padding: 10px;
+    min-height: 96px;
   }
 
   .chickens {
@@ -382,6 +394,36 @@
 
   .secondary {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    font-size: 14px;
+  }
+
+  .app {
+    padding: 10px;
+  }
+
+  .chicken {
+    font-size: 1.1rem;
+    padding: 8px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, 52px);
+    grid-template-rows: repeat(3, 52px);
+    gap: 8px;
+  }
+
+  .node {
+    width: 52px;
+    height: 52px;
+  }
+
+  .wolf-icon {
+    font-size: 1.4rem;
   }
 }
 
