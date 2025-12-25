@@ -130,9 +130,9 @@ export class GameModel {
   update(now: number = performance.now()): GameState {
     const delta = Math.max(0, Math.min(1000, now - this.lastUpdate))
     this.lastUpdate = now
-    this.elapsedMs = Math.max(0, now - this.startTime)
-
+    
     if (!this.gameOver) {
+      this.elapsedMs = Math.max(0, now - this.startTime)
       this.updateChickenSpawns(delta)
       this.updateChickenEggs(delta)
       this.updateEggs(delta)
