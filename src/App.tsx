@@ -11,6 +11,11 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(() => gameModel.getState())
   const [reloadUntil, setReloadUntil] = useState<number>(0)
   const [nowMs, setNowMs] = useState(() => performance.now())
+  const caughtPerSecond = useMemo(() => {
+    const seconds = gameState.elapsedMs / 1000
+    if (seconds <= 0) return '0.00'
+    return (gameState.caughtEggs / seconds).toFixed(2)
+  }, [gameState.caughtEggs, gameState.elapsedMs])
 
   useEffect(() => {
     const tick = () => {
@@ -75,6 +80,7 @@ function App() {
         </div>
         <div className="stats">
           <div className="stat">Caught eggs: {gameState.caughtEggs}</div>
+          <div className="stat">Caught eggs/sec: {caughtPerSecond}</div>
           <div className={`stat ${gameState.droppedEggs >= 2 ? 'danger' : ''}`}>
             Dropped eggs: {gameState.droppedEggs}/3
           </div>
