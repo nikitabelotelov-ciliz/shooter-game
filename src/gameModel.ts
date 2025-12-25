@@ -29,6 +29,7 @@ export interface GameState {
   wolfTarget: Position
   caughtEggs: number
   droppedEggs: number
+  elapsedMs: number
   gameOver: boolean
 }
 
@@ -88,6 +89,10 @@ export class GameModel {
 
   private gameOver = false
 
+  private startTime = performance.now()
+
+  private elapsedMs = 0
+
   private lastUpdate = performance.now()
 
   private nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
@@ -108,8 +113,10 @@ export class GameModel {
     this.gameOver = false
     this.wolfMoveAccumulator = 0
     this.nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
+    this.startTime = performance.now()
+    this.elapsedMs = 0
     this.seedInitialChickens()
-    this.lastUpdate = performance.now()
+    this.lastUpdate = this.startTime
   }
 
   removeChicken(id: string) {
@@ -123,6 +130,7 @@ export class GameModel {
   update(now: number = performance.now()): GameState {
     const delta = Math.max(0, Math.min(1000, now - this.lastUpdate))
     this.lastUpdate = now
+    this.elapsedMs = Math.max(0, now - this.startTime)
 
     if (!this.gameOver) {
       this.updateChickenSpawns(delta)
@@ -142,6 +150,7 @@ export class GameModel {
       wolfTarget: { ...this.wolfTarget },
       caughtEggs: this.caughtEggs,
       droppedEggs: this.droppedEggs,
+      elapsedMs: this.elapsedMs,
       gameOver: this.gameOver,
     }
   }
