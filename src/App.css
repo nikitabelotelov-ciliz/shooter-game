@@ -6,7 +6,7 @@
 }
 
 .app {
-  padding: 24px;
+  padding: clamp(16px, 3vw, 24px);
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -22,7 +22,7 @@
 .subtitle {
   margin: 6px 0 0;
   color: #c7d2e0;
-  font-size: 0.95rem;
+  font-size: clamp(0.92rem, 2vw, 0.95rem);
 }
 
 .stats {
@@ -146,7 +146,7 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  gap: 30px;
+  gap: clamp(18px, 4vw, 30px);
   position: relative;
   z-index: 2;
   flex-shrink: 0;
@@ -280,5 +280,128 @@
   .grid {
     grid-template-columns: repeat(3, 70px);
     grid-template-rows: repeat(3, 70px);
+  }
+}
+
+@media (max-width: 720px) {
+  .hud {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stat,
+  .reload,
+  .secondary {
+    flex: 1 1 45%;
+  }
+
+  .arena {
+    grid-template-columns: 1fr;
+  }
+
+  .wolf-zone {
+    order: -1;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, 64px);
+    grid-template-rows: repeat(3, 64px);
+    gap: 10px;
+  }
+
+  .node {
+    width: 64px;
+    height: 64px;
+  }
+
+  .wolf-icon {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 520px) {
+  :root {
+    font-size: 15px;
+  }
+
+  .app {
+    padding: 12px;
+  }
+
+  .hud {
+    gap: 8px;
+  }
+
+  .stats {
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stat,
+  .reload {
+    min-width: unset;
+  }
+
+  .reload .bar {
+    height: 10px;
+  }
+
+  .arena {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .conveyor {
+    padding: 10px;
+  }
+
+  .chickens {
+    gap: 16px;
+  }
+
+  .chicken {
+    font-size: 1.2rem;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, 58px);
+    grid-template-rows: repeat(3, 58px);
+  }
+
+  .node {
+    width: 58px;
+    height: 58px;
+  }
+
+  .secondary {
+    width: 100%;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 960px) {
+  .arena {
+    grid-template-columns: 1fr;
+  }
+
+  .wolf-zone {
+    order: -1;
+    margin-bottom: 8px;
+  }
+
+  .stats {
+    justify-content: stretch;
+  }
+
+  .stat,
+  .reload,
+  .secondary {
+    min-width: 0;
   }
 }
