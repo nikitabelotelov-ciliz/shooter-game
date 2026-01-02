@@ -91,7 +91,7 @@
 
 .arena {
   display: grid;
-  grid-template-columns: 1fr 240px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 30px;
   background: #0f1a28;
   border: 1px solid #1c2a3d;
@@ -214,13 +214,13 @@
 .wolf-zone {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 80px);
-  grid-template-rows: repeat(3, 80px);
+  grid-template-columns: repeat(1, 80px);
+  grid-template-rows: repeat(4, 80px);
   gap: 12px;
 }
 
@@ -270,7 +270,7 @@
 
 @media (max-width: 700px) {
   .arena {
-    grid-template-columns: 1fr 110px 1fr;
+    grid-template-columns: 110px 1fr;
   }
 
   .app {
@@ -369,14 +369,14 @@
   }
 
   .grid {
-    grid-template-columns: repeat(3, 30px);
-    grid-template-rows: repeat(3, 30px);
+    grid-template-columns: repeat(1, 50px);
+    grid-template-rows: repeat(4, 50px);
     gap: 5px;
   }
 
   .node {
-    width: 30px;
-    height: 30px;
+    width: 50px;
+    height: 50px;
   }
 
   .wolf-icon {
