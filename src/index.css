@@ -26,6 +26,10 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: #0b0f14;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12px;
 }
 
 button {
@@ -38,4 +42,8 @@ h1 {
 
 p {
   margin: 0;
+}
+
+#root {
+  width: min(520px, 100%);
 }
