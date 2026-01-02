@@ -1,4 +1,4 @@
-export type Side = 'left' | 'right'
+export type Side = 'right'
 
 export interface Position {
   row: number
@@ -33,7 +33,7 @@ export interface GameState {
   gameOver: boolean
 }
 
-const LINES_PER_SIDE = 3
+const LINES_PER_SIDE = 4
 const SEATS_PER_LINE = 3
 const MIN_INITIAL_CHICKENS = 2
 const MAX_INITIAL_CHICKENS = 3
@@ -42,30 +42,31 @@ const EGG_COOLDOWN_RANGE_MS: [number, number] = [5000, 10000]
 const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
-const DROP_POSITION: Record<Side, number> = { left: 1, right: 0 }
+const DROP_POSITION: Record<Side, number> = { right: 0 }
 const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.75, 0.5]
+const WOLF_START_ROW = Math.floor((LINES_PER_SIDE - 1) / 2)
+const WOLF_COL = 0
 
 const randomBetween = (min: number, max: number) => Math.random() * (max - min) + min
 const randomDelay = (range: [number, number]) => randomBetween(range[0], range[1])
 
-const normalizedSeatIndex = (side: Side, seat: number) =>
-  side === 'left' ? seat : SEATS_PER_LINE - 1 - seat
+const normalizedSeatIndex = (seat: number) => SEATS_PER_LINE - 1 - seat
 
-const travelDistanceForSeat = (side: Side, seat: number) => {
-  const indexFromDrop = normalizedSeatIndex(side, seat)
+const travelDistanceForSeat = (seat: number) => {
+  const indexFromDrop = normalizedSeatIndex(seat)
   const boundedIndex = Math.min(SEAT_TRAVEL_RATIOS.length - 1, Math.max(0, indexFromDrop))
   return SEAT_TRAVEL_RATIOS[boundedIndex]
 }
 
 const spawnPositionForSeat = (side: Side, seat: number) => {
   const dropPosition = DROP_POSITION[side]
-  const distance = travelDistanceForSeat(side, seat)
+  const distance = travelDistanceForSeat(seat)
   return dropPosition === 1 ? 1 - distance : distance
 }
 
-const catchPositionForLine = (side: Side, line: number): Position => ({
+const catchPositionForLine = (_side: Side, line: number): Position => ({
   row: line,
-  col: side === 'left' ? 0 : 2,
+  col: WOLF_COL,
 })
 
 interface SeatPosition {
@@ -79,9 +80,9 @@ export class GameModel {
 
   private eggs: Egg[] = []
 
-  private wolfPosition: Position = { row: 1, col: 1 }
+  private wolfPosition: Position = { row: WOLF_START_ROW, col: WOLF_COL }
 
-  private wolfTarget: Position = { row: 1, col: 1 }
+  private wolfTarget: Position = { row: WOLF_START_ROW, col: WOLF_COL }
 
   private caughtEggs = 0
 
@@ -106,8 +107,8 @@ export class GameModel {
   reset() {
     this.chickens = []
     this.eggs = []
-    this.wolfPosition = { row: 1, col: 1 }
-    this.wolfTarget = { row: 1, col: 1 }
+    this.wolfPosition = { row: WOLF_START_ROW, col: WOLF_COL }
+    this.wolfTarget = { row: WOLF_START_ROW, col: WOLF_COL }
     this.caughtEggs = 0
     this.droppedEggs = 0
     this.gameOver = false
@@ -179,7 +180,7 @@ export class GameModel {
     const occupied = new Set<string>(this.chickens.map((chicken) => `${chicken.side}-${chicken.line}-${chicken.seat}`))
     const openSeats: SeatPosition[] = []
 
-    ;(['left', 'right'] as Side[]).forEach((side) => {
+    ;(['right'] as Side[]).forEach((side) => {
       for (let line = 0; line < LINES_PER_SIDE; line += 1) {
         for (let seat = 0; seat < SEATS_PER_LINE; seat += 1) {
           const key = `${side}-${line}-${seat}`
@@ -214,7 +215,7 @@ export class GameModel {
   }
 
   private spawnEgg(chicken: Chicken) {
-    const travelDistance = travelDistanceForSeat(chicken.side, chicken.seat)
+    const travelDistance = travelDistanceForSeat(chicken.seat)
     const startPosition = spawnPositionForSeat(chicken.side, chicken.seat)
     this.eggs.push({
       id: `${chicken.id}-egg-${Date.now()}-${Math.random().toFixed(4)}`,
@@ -256,7 +257,7 @@ export class GameModel {
 
   private updateWolf(delta: number) {
     if (!this.eggs.length) {
-      this.wolfTarget = { row: 1, col: 1 }
+      this.wolfTarget = { row: WOLF_START_ROW, col: WOLF_COL }
     } else {
       let bestEgg = this.eggs[0]
       let bestTimeLeft = this.timeToDrop(bestEgg)

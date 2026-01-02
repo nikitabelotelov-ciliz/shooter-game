@@ -32,9 +32,7 @@ function App() {
   const gridPositions = useMemo(() => {
     const positions = [] as { row: number; col: number }[]
     for (let row = 0; row < LINES_PER_SIDE; row += 1) {
-      for (let col = 0; col < 3; col += 1) {
-        positions.push({ row, col })
-      }
+      positions.push({ row, col: 0 })
     }
     return positions
   }, [])
@@ -101,14 +99,6 @@ function App() {
       )}
 
       <div className="arena">
-        <ConveyorColumn
-          side="left"
-          chickens={gameState.chickens.filter((c) => c.side === 'left')}
-          eggs={gameState.eggs.filter((egg) => egg.side === 'left')}
-          onShootChicken={handleShootChicken}
-          onShootEgg={handleShootEgg}
-        />
-
         <div className="wolf-zone">
           <div className="grid">
             {gridPositions.map((pos) => {
@@ -128,15 +118,15 @@ function App() {
 
         <ConveyorColumn
           side="right"
-          chickens={gameState.chickens.filter((c) => c.side === 'right')}
-          eggs={gameState.eggs.filter((egg) => egg.side === 'right')}
+          chickens={gameState.chickens}
+          eggs={gameState.eggs}
           onShootChicken={handleShootChicken}
           onShootEgg={handleShootEgg}
         />
       </div>
 
       <div className="instructions">
-        <p>Chickens perch on six conveyor lines with seats closer or farther from the drop point.</p>
+        <p>Chickens perch on four conveyor lines on the right side, with seats closer or farther from the drop point.</p>
         <ul>
           <li>New chickens occupy free seats every few seconds; click a chicken to clear its spot.</li>
           <li>Each chicken drops eggs every 5-10 seconds. The closer the seat, the shorter the fall.</li>
@@ -197,8 +187,7 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
             <div className="eggs">
               {eggsByRow[rowIndex].map((egg) => {
                 const pathProgress = Math.min(1, egg.progress / egg.travelDistance)
-                const dropPosition = side === 'left' ? 1 : 0
-                const position = egg.startPosition + (dropPosition - egg.startPosition) * pathProgress
+                const position = egg.startPosition * (1 - pathProgress)
                 const left = `${position * 100}%`
                 return (
                   <button
