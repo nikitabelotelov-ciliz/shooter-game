@@ -214,7 +214,7 @@
 .wolf-zone {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .grid {
@@ -369,14 +369,14 @@
   }
 
   .grid {
-    grid-template-columns: repeat(1, 30px);
-    grid-template-rows: repeat(4, 30px);
+    grid-template-columns: repeat(1, 50px);
+    grid-template-rows: repeat(4, 50px);
     gap: 5px;
   }
 
   .node {
-    width: 30px;
-    height: 30px;
+    width: 50px;
+    height: 50px;
   }
 
   .wolf-icon {
