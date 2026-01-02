@@ -92,7 +92,7 @@
 .arena {
   display: grid;
   grid-template-columns: 1fr 240px 1fr;
-  gap: 12px;
+  gap: 30px;
   background: #0f1a28;
   border: 1px solid #1c2a3d;
   border-radius: 16px;
@@ -268,17 +268,134 @@
   margin-bottom: 6px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 700px) {
   .arena {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 110px 1fr;
   }
 
-  .wolf-zone {
-    order: -1;
+  .app {
+    padding: 7px;
+  }
+
+  .hud {
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    margin: 2px 0 0;
+    font-size: 0.75rem;
+  }
+
+  .stats {
+    gap: 5px;
+  }
+
+  .stat {
+    padding: 4px 5px;
+    min-width: 48px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+  }
+
+  .reload {
+    min-width: 72px;
+    gap: 2px;
+  }
+
+  .reload .bar {
+    height: 4px;
+  }
+
+  .secondary {
+    padding: 4px 6px;
+    font-size: 0.8rem;
+    border-radius: 5px;
+  }
+
+  .banner {
+    padding: 5px 7px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+  }
+
+  .arena {
+    gap: 5px;
+    padding: 6px;
+    border-radius: 7px;
+  }
+
+  .column {
+    gap: 6px;
+  }
+
+  .conveyor {
+    padding: 5px;
+    min-height: 42px;
+    gap: 5px;
+    border-radius: 5px;
+  }
+
+  .belt {
+    min-height: 9px;
+    margin-top: 10px;
+  }
+
+  .track {
+    height: 4px;
+    border-radius: 4px;
+  }
+
+  .chickens {
+    gap: 12px;
+  }
+
+  .chicken {
+    padding: 4px 5px;
+    font-size: 0.9rem;
+    border-radius: 5px;
+  }
+
+  .eggs {
+    height: 5px;
+    font-size: 14px;
+  }
+
+  .egg {
+    top: -4px;
+    width: 16px;
+    height: 16px;
   }
 
   .grid {
-    grid-template-columns: repeat(3, 70px);
-    grid-template-rows: repeat(3, 70px);
+    grid-template-columns: repeat(3, 30px);
+    grid-template-rows: repeat(3, 30px);
+    gap: 5px;
+  }
+
+  .node {
+    width: 30px;
+    height: 30px;
+  }
+
+  .wolf-icon {
+    font-size: 0.9rem;
+  }
+
+  .instructions {
+    margin-top: 7px;
+    padding: 6px 7px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+  }
+
+  .instructions ul {
+    margin: 4px 0 0;
+    padding-left: 10px;
+  }
+
+  .instructions li {
+    margin-bottom: 2px;
   }
 }
