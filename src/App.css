@@ -128,6 +128,11 @@
   gap: 8px;
 }
 
+.conveyor.slowed {
+  border-color: #4bc1ff;
+  box-shadow: 0 0 0 1px rgba(75, 193, 255, 0.35);
+}
+
 .conveyor.right {
   flex-direction: row-reverse;
 }

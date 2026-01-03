@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import './App.css'
 import type { Chicken, Egg, GameState, Side } from './gameModel'
 import { EXTRA_TIMER_MS, GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
@@ -48,6 +48,7 @@ const getChickenStyle = (chicken: Chicken): CSSProperties | undefined => {
 function App() {
   const [gameModel] = useState(() => new GameModel())
   const [gameState, setGameState] = useState<GameState>(() => gameModel.getState())
+  const slowedLinesRef = useRef<Set<number>>(new Set())
   const caughtPerSecond = useMemo(() => {
     const seconds = gameState.elapsedMs / 1000
     if (seconds <= 0) return '0.00'
@@ -56,7 +57,7 @@ function App() {
 
   useEffect(() => {
     const tick = () => {
-      const state = gameModel.update()
+      const state = gameModel.update(performance.now(), slowedLinesRef.current)
       setGameState(state)
     }
 
@@ -90,8 +91,39 @@ function App() {
   }
 
   const handleReset = () => {
+    slowedLinesRef.current = new Set()
     gameModel.reset()
     setGameState(gameModel.getState())
+  }
+
+  const addSlowedLine = (line: number) => {
+    const next = new Set(slowedLinesRef.current)
+    next.add(line)
+    slowedLinesRef.current = next
+  }
+
+  const removeSlowedLine = (line: number) => {
+    const next = new Set(slowedLinesRef.current)
+    next.delete(line)
+    slowedLinesRef.current = next
+  }
+
+  const handleSlowPointerDown = (line: number, event: PointerEvent) => {
+    if (event.button !== 2 && event.pointerType !== 'touch') return
+    event.preventDefault()
+    addSlowedLine(line)
+  }
+
+  const handleSlowPointerUp = (line: number) => {
+    removeSlowedLine(line)
+  }
+
+  const handleSlowPointerLeave = (line: number) => {
+    removeSlowedLine(line)
+  }
+
+  const handleSlowPointerCancel = (line: number) => {
+    removeSlowedLine(line)
   }
 
   return (
@@ -141,8 +173,13 @@ function App() {
           side="right"
           chickens={gameState.chickens}
           eggs={gameState.eggs}
+          slowedLines={gameState.slowedLines}
           onShootChicken={handleShootChicken}
           onShootEgg={handleShootEgg}
+          onSlowDownStart={handleSlowPointerDown}
+          onSlowDownEnd={handleSlowPointerUp}
+          onSlowDownCancel={handleSlowPointerCancel}
+          onSlowDownLeave={handleSlowPointerLeave}
         />
       </div>
 
@@ -163,11 +200,27 @@ interface ConveyorProps {
   side: Side
   chickens: Chicken[]
   eggs: Egg[]
+  slowedLines: number[]
   onShootChicken: (chicken: Chicken) => void
   onShootEgg: (egg: Egg) => void
+  onSlowDownStart: (line: number, event: PointerEvent) => void
+  onSlowDownEnd: (line: number) => void
+  onSlowDownCancel: (line: number) => void
+  onSlowDownLeave: (line: number) => void
 }
 
-function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: ConveyorProps) {
+function ConveyorColumn({
+  side,
+  chickens,
+  eggs,
+  slowedLines,
+  onShootChicken,
+  onShootEgg,
+  onSlowDownStart,
+  onSlowDownEnd,
+  onSlowDownCancel,
+  onSlowDownLeave,
+}: ConveyorProps) {
   const rows: Chicken[][] = useMemo(() => {
     const grouped: Chicken[][] = Array.from({ length: LINES_PER_SIDE }, () => [])
     chickens.forEach((chicken) => {
@@ -185,7 +238,15 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
   return (
     <div className={`column ${side}`}>
       {rows.map((rowChickens, rowIndex) => (
-        <div className={`conveyor ${side}`} key={`${side}-${rowIndex}`}>
+        <div
+          className={`conveyor ${side} ${slowedLines.includes(rowIndex) ? 'slowed' : ''}`}
+          key={`${side}-${rowIndex}`}
+          onPointerDown={(event) => onSlowDownStart(rowIndex, event)}
+          onPointerUp={() => onSlowDownEnd(rowIndex)}
+          onPointerLeave={() => onSlowDownLeave(rowIndex)}
+          onPointerCancel={() => onSlowDownCancel(rowIndex)}
+          onContextMenu={(event) => event.preventDefault()}
+        >
           <div className="chickens">
             {Array.from({ length: SEATS_PER_LINE }).map((_, seatIndex) => {
               const chicken = rowChickens.find((item) => item.seat === seatIndex)

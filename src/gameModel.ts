@@ -33,6 +33,7 @@ export interface GameState {
   elapsedMs: number
   gameOver: boolean
   reloadProgress: number
+  slowedLines: number[]
 }
 
 const LINES_PER_SIDE = 4
@@ -48,6 +49,7 @@ const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
 const DROP_POSITION: Record<Side, number> = { right: 0 }
 const SHOOT_COOLDOWN_MS = 900
+const SLOWED_LINE_SPEED_MULTIPLIER = 0.35
 const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.90, 0.8]
 const WOLF_START_ROW = Math.floor((LINES_PER_SIDE - 1) / 2)
 const WOLF_COL = 0
@@ -107,6 +109,8 @@ export class GameModel {
 
   private reloadUntilMs = 0
 
+  private activeSlowLines: Set<number> = new Set()
+
   constructor() {
     this.seedInitialChickens()
   }
@@ -121,6 +125,7 @@ export class GameModel {
     this.gameOver = false
     this.wolfMoveAccumulator = 0
     this.reloadUntilMs = 0
+    this.activeSlowLines.clear()
     this.nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
     this.startTime = performance.now()
     this.elapsedMs = 0
@@ -140,15 +145,16 @@ export class GameModel {
     this.eggs = this.eggs.filter((egg) => egg.id !== id)
   }
 
-  update(now: number = performance.now()): GameState {
+  update(now: number = performance.now(), slowedLines: Iterable<number> = []): GameState {
     const delta = Math.max(0, Math.min(1000, now - this.lastUpdate))
     this.lastUpdate = now
-    
+
     if (!this.gameOver) {
       this.elapsedMs = Math.max(0, now - this.startTime)
       this.updateChickenSpawns(delta)
       this.updateChickenEggs(delta)
-      this.updateEggs(delta)
+      this.handleLineSlowdown(slowedLines, delta)
+      this.updateEggs(delta, this.activeSlowLines)
       this.updateWolf(delta)
     }
 
@@ -173,6 +179,7 @@ export class GameModel {
       elapsedMs: this.elapsedMs,
       gameOver: this.gameOver,
       reloadProgress,
+      slowedLines: Array.from(this.activeSlowLines),
     }
   }
 
@@ -247,6 +254,27 @@ export class GameModel {
     })
   }
 
+  private handleLineSlowdown(slowedLines: Iterable<number>, delta: number) {
+    const now = performance.now()
+    const remainingReload = Math.max(0, this.reloadUntilMs - now)
+
+    const validLines = new Set<number>()
+    for (const line of slowedLines) {
+      if (Number.isInteger(line) && line >= 0 && line < LINES_PER_SIDE) {
+        validLines.add(line)
+      }
+    }
+
+    if (!validLines.size || remainingReload >= SHOOT_COOLDOWN_MS) {
+      this.activeSlowLines.clear()
+      return
+    }
+
+    const newRemaining = Math.min(SHOOT_COOLDOWN_MS, remainingReload + delta)
+    this.reloadUntilMs = now + newRemaining
+    this.activeSlowLines = validLines
+  }
+
   canShoot(): boolean {
     return performance.now() >= this.reloadUntilMs
   }
@@ -291,10 +319,12 @@ export class GameModel {
     })
   }
 
-  private updateEggs(delta: number) {
+  private updateEggs(delta: number, slowedLines: Set<number>) {
     const survivors: Egg[] = []
     this.eggs.forEach((egg) => {
-      const progress = egg.progress + (delta / 1000) * EGG_SPEED_UNITS_PER_SECOND
+      const isSlowed = slowedLines.has(egg.line)
+      const speedMultiplier = isSlowed ? SLOWED_LINE_SPEED_MULTIPLIER : 1
+      const progress = egg.progress + (delta / 1000) * EGG_SPEED_UNITS_PER_SECOND * speedMultiplier
       if (progress >= egg.travelDistance) {
         this.handleEggDrop(egg)
       } else {
