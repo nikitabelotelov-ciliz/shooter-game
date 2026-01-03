@@ -11,6 +11,7 @@ export interface Chicken {
   line: number
   seat: number
   nextEggMs: number
+  extraTimer: number
 }
 
 export interface Egg {
@@ -41,6 +42,7 @@ const EGG_SPEED_UNITS_PER_SECOND = 0.1
 const EGG_COOLDOWN_RANGE_MS: [number, number] = [10000, 20000]
 const INITIAL_EGG_SPAWN_MS = 3000
 const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
+const EXTRA_TIMER_MS = 10000
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
 const DROP_POSITION: Record<Side, number> = { right: 0 }
@@ -185,6 +187,7 @@ export class GameModel {
       line: seat.line,
       seat: seat.seat,
       nextEggMs: randomDelay(EGG_COOLDOWN_RANGE_MS),
+      extraTimer: 0,
     })
   }
 
@@ -218,12 +221,21 @@ export class GameModel {
 
   private updateChickenEggs(delta: number) {
     this.chickens.forEach((chicken) => {
+      chicken.extraTimer = Math.max(0, chicken.extraTimer - delta)
       chicken.nextEggMs -= delta
       if (chicken.nextEggMs > 0) return
 
       this.spawnEgg(chicken)
       chicken.nextEggMs = randomDelay(EGG_COOLDOWN_RANGE_MS)
     })
+  }
+
+  shootChicken(chickenId: string) {
+    const chicken = this.chickens.find((item) => item.id === chickenId)
+    if (!chicken) return
+
+    this.spawnEgg(chicken)
+    chicken.extraTimer = EXTRA_TIMER_MS
   }
 
   private spawnEgg(chicken: Chicken) {
@@ -313,4 +325,4 @@ export class GameModel {
   }
 }
 
-export { LINES_PER_SIDE, SEATS_PER_LINE, catchPositionForLine }
+export { LINES_PER_SIDE, SEATS_PER_LINE, EXTRA_TIMER_MS, catchPositionForLine }

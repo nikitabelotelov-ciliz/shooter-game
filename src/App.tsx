@@ -1,10 +1,50 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import './App.css'
 import type { Chicken, Egg, GameState, Side } from './gameModel'
-import { GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
+import { EXTRA_TIMER_MS, GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
 
 const FRAME_MS = 1000 / 30
 const SHOOT_COOLDOWN_MS = 900
+const DEFAULT_CHICKEN_BG = '#233247'
+const DEFAULT_CHICKEN_BORDER = '#355170'
+const ALERT_CHICKEN_BG = '#d74f4f'
+const ALERT_CHICKEN_BORDER = '#f28b6b'
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+
+const mixColors = (from: string, to: string, ratio: number) => {
+  const normalized = clamp01(ratio)
+  const parse = (color: string) => {
+    const hex = color.replace('#', '')
+    const bigint = parseInt(hex, 16)
+    return {
+      r: (bigint >> 16) & 255,
+      g: (bigint >> 8) & 255,
+      b: bigint & 255,
+    }
+  }
+
+  const start = parse(from)
+  const end = parse(to)
+
+  const r = Math.round(start.r + (end.r - start.r) * normalized)
+  const g = Math.round(start.g + (end.g - start.g) * normalized)
+  const b = Math.round(start.b + (end.b - start.b) * normalized)
+
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+const getChickenStyle = (chicken: Chicken): CSSProperties | undefined => {
+  if (chicken.extraTimer <= 0) return undefined
+
+  const intensity = clamp01(chicken.extraTimer / EXTRA_TIMER_MS)
+  const blendRatio = 1 - intensity
+
+  return {
+    backgroundColor: mixColors(ALERT_CHICKEN_BG, DEFAULT_CHICKEN_BG, blendRatio),
+    borderColor: mixColors(ALERT_CHICKEN_BORDER, DEFAULT_CHICKEN_BORDER, blendRatio),
+  }
+}
 
 function App() {
   const [gameModel] = useState(() => new GameModel())
@@ -42,7 +82,7 @@ function App() {
     const now = performance.now()
     if (now < reloadUntil) return
 
-    gameModel.removeChicken(chicken.id)
+    gameModel.shootChicken(chicken.id)
     setReloadUntil(now + SHOOT_COOLDOWN_MS)
     setGameState(gameModel.getState())
   }
@@ -124,7 +164,7 @@ function App() {
       <div className="instructions">
         <p>Chickens perch on four conveyor lines on the right side, with seats closer or farther from the drop point.</p>
         <ul>
-          <li>New chickens occupy free seats every few seconds; click a chicken to clear its spot.</li>
+          <li>New chickens occupy free seats every few seconds; click a chicken to shake out an extra egg.</li>
           <li>Each chicken drops eggs every 5-10 seconds. The closer the seat, the shorter the fall.</li>
           <li>The wolf moves automatically toward the egg that will drop first.</li>
           <li>Click an egg to shoot it if the wolf cannot get there in time. Three dropped eggs end the run.</li>
@@ -169,7 +209,8 @@ function ConveyorColumn({ side, chickens, eggs, onShootChicken, onShootEgg }: Co
                   key={`${side}-${rowIndex}-${seatIndex}`}
                   className={`chicken ${!chicken ? 'empty' : ''}`}
                   onClick={() => chicken && onShootChicken(chicken)}
-                  title={chicken ? 'Remove chicken' : 'Empty seat'}
+                  style={chicken ? getChickenStyle(chicken) : undefined}
+                  title={chicken ? 'Shoot chicken for an extra egg' : 'Empty seat'}
                   disabled={!chicken}
                 >
                   {chicken ? '🐔' : '⬜️'}
