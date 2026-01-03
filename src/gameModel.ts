@@ -32,6 +32,7 @@ export interface GameState {
   droppedEggs: number
   elapsedMs: number
   gameOver: boolean
+  reloadProgress: number
 }
 
 const LINES_PER_SIDE = 4
@@ -46,6 +47,7 @@ const EXTRA_TIMER_MS = 10000
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
 const DROP_POSITION: Record<Side, number> = { right: 0 }
+const SHOOT_COOLDOWN_MS = 900
 const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.90, 0.8]
 const WOLF_START_ROW = Math.floor((LINES_PER_SIDE - 1) / 2)
 const WOLF_COL = 0
@@ -103,6 +105,8 @@ export class GameModel {
 
   private wolfMoveAccumulator = 0
 
+  private reloadUntilMs = 0
+
   constructor() {
     this.seedInitialChickens()
   }
@@ -116,6 +120,7 @@ export class GameModel {
     this.droppedEggs = 0
     this.gameOver = false
     this.wolfMoveAccumulator = 0
+    this.reloadUntilMs = 0
     this.nextChickenSpawnMs = randomDelay(CHICKEN_SPAWN_RANGE_MS)
     this.startTime = performance.now()
     this.elapsedMs = 0
@@ -147,6 +152,13 @@ export class GameModel {
   }
 
   getState(): GameState {
+    const now = performance.now()
+    let reloadProgress = 1
+    if (now < this.reloadUntilMs) {
+      const left = this.reloadUntilMs - now
+      reloadProgress = Math.max(0, 1 - left / SHOOT_COOLDOWN_MS)
+    }
+
     return {
       chickens: this.chickens.map((chicken) => ({ ...chicken })),
       eggs: this.eggs.map((egg) => ({ ...egg })),
@@ -156,6 +168,7 @@ export class GameModel {
       droppedEggs: this.droppedEggs,
       elapsedMs: this.elapsedMs,
       gameOver: this.gameOver,
+      reloadProgress,
     }
   }
 
@@ -230,12 +243,35 @@ export class GameModel {
     })
   }
 
-  shootChicken(chickenId: string) {
+  canShoot(): boolean {
+    return performance.now() >= this.reloadUntilMs
+  }
+
+  private startReload() {
+    this.reloadUntilMs = performance.now() + SHOOT_COOLDOWN_MS
+  }
+
+  shootChicken(chickenId: string): boolean {
+    if (!this.canShoot()) return false
+
     const chicken = this.chickens.find((item) => item.id === chickenId)
-    if (!chicken) return
+    if (!chicken) return false
 
     this.spawnEgg(chicken)
     chicken.extraTimer = EXTRA_TIMER_MS
+    this.startReload()
+    return true
+  }
+
+  shootEgg(eggId: string): boolean {
+    if (!this.canShoot()) return false
+
+    const eggExists = this.eggs.some((egg) => egg.id === eggId)
+    if (!eggExists) return false
+
+    this.eggs = this.eggs.filter((egg) => egg.id !== eggId)
+    this.startReload()
+    return true
   }
 
   private spawnEgg(chicken: Chicken) {

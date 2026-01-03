@@ -4,7 +4,6 @@ import type { Chicken, Egg, GameState, Side } from './gameModel'
 import { EXTRA_TIMER_MS, GameModel, LINES_PER_SIDE, SEATS_PER_LINE } from './gameModel'
 
 const FRAME_MS = 1000 / 30
-const SHOOT_COOLDOWN_MS = 900
 const DEFAULT_CHICKEN_BG = '#233247'
 const DEFAULT_CHICKEN_BORDER = '#355170'
 const ALERT_CHICKEN_BG = '#d74f4f'
@@ -49,8 +48,6 @@ const getChickenStyle = (chicken: Chicken): CSSProperties | undefined => {
 function App() {
   const [gameModel] = useState(() => new GameModel())
   const [gameState, setGameState] = useState<GameState>(() => gameModel.getState())
-  const [reloadUntil, setReloadUntil] = useState<number>(0)
-  const [nowMs, setNowMs] = useState(() => performance.now())
   const caughtPerSecond = useMemo(() => {
     const seconds = gameState.elapsedMs / 1000
     if (seconds <= 0) return '0.00'
@@ -61,7 +58,6 @@ function App() {
     const tick = () => {
       const state = gameModel.update()
       setGameState(state)
-      setNowMs(performance.now())
     }
 
     tick()
@@ -79,35 +75,24 @@ function App() {
 
   const handleShootChicken = (chicken: Chicken) => {
     if (gameState.gameOver) return
-    const now = performance.now()
-    if (now < reloadUntil) return
 
-    gameModel.shootChicken(chicken.id)
-    setReloadUntil(now + SHOOT_COOLDOWN_MS)
-    setGameState(gameModel.getState())
+    if (gameModel.shootChicken(chicken.id)) {
+      setGameState(gameModel.getState())
+    }
   }
 
   const handleShootEgg = (egg: Egg) => {
     if (gameState.gameOver) return
-    const now = performance.now()
-    if (now < reloadUntil) return
 
-    gameModel.removeEgg(egg.id)
-    setReloadUntil(now + SHOOT_COOLDOWN_MS)
-    setGameState(gameModel.getState())
+    if (gameModel.shootEgg(egg.id)) {
+      setGameState(gameModel.getState())
+    }
   }
 
   const handleReset = () => {
     gameModel.reset()
     setGameState(gameModel.getState())
-    setReloadUntil(0)
   }
-
-  const reloadProgress = useMemo(() => {
-    if (nowMs >= reloadUntil) return 1
-    const left = reloadUntil - nowMs
-    return Math.max(0, 1 - left / SHOOT_COOLDOWN_MS)
-  }, [nowMs, reloadUntil])
 
   return (
     <div className="app">
@@ -121,7 +106,7 @@ function App() {
           <div className="reload">
             <span>Reload</span>
             <div className="bar">
-              <div className="bar-fill" style={{ width: `${reloadProgress * 100}%` }} />
+              <div className="bar-fill" style={{ width: `${gameState.reloadProgress * 100}%` }} />
             </div>
           </div>
           <button className="secondary" onClick={handleReset}>
