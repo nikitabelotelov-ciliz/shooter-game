@@ -39,6 +39,7 @@ const MIN_INITIAL_CHICKENS = 2
 const MAX_INITIAL_CHICKENS = 3
 const EGG_SPEED_UNITS_PER_SECOND = 0.1
 const EGG_COOLDOWN_RANGE_MS: [number, number] = [10000, 20000]
+const INITIAL_EGG_SPAWN_MS = 3000
 const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
@@ -160,6 +161,17 @@ export class GameModel {
     const totalToSpawn = Math.floor(randomBetween(MIN_INITIAL_CHICKENS, MAX_INITIAL_CHICKENS + 1))
     for (let i = 0; i < totalToSpawn; i += 1) {
       this.spawnRandomChicken()
+    }
+    
+    // Reduce all initial chickens' timers so the first egg spawns at INITIAL_EGG_SPAWN_MS
+    if (this.chickens.length > 0) {
+      const minTimer = Math.min(...this.chickens.map((chicken) => chicken.nextEggMs))
+      const reduction = minTimer - INITIAL_EGG_SPAWN_MS
+      if (reduction > 0) {
+        this.chickens.forEach((chicken) => {
+          chicken.nextEggMs -= reduction
+        })
+      }
     }
   }
 
