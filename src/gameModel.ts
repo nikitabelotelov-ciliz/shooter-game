@@ -133,6 +133,10 @@ export class GameModel {
   }
 
   removeEgg(id: string) {
+    const eggExists = this.eggs.some((egg) => egg.id === id)
+    if (eggExists) {
+      this.caughtEggs += 1
+    }
     this.eggs = this.eggs.filter((egg) => egg.id !== id)
   }
 
