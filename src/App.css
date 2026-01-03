@@ -101,7 +101,7 @@
 
 .arena {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: auto 1fr;
   gap: 8px;
   background: #0f1a28;
   border: 1px solid #1c2a3d;

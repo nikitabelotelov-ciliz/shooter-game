@@ -37,13 +37,13 @@ const LINES_PER_SIDE = 4
 const SEATS_PER_LINE = 3
 const MIN_INITIAL_CHICKENS = 2
 const MAX_INITIAL_CHICKENS = 3
-const EGG_SPEED_UNITS_PER_SECOND = 0.25
-const EGG_COOLDOWN_RANGE_MS: [number, number] = [5000, 10000]
+const EGG_SPEED_UNITS_PER_SECOND = 0.1
+const EGG_COOLDOWN_RANGE_MS: [number, number] = [10000, 20000]
 const CHICKEN_SPAWN_RANGE_MS: [number, number] = [5000, 10000]
 const MAX_DROPPED_EGGS = 3
 const WOLF_STEP_MS = 240
 const DROP_POSITION: Record<Side, number> = { right: 0 }
-const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.75, 0.5]
+const SEAT_TRAVEL_RATIOS: readonly number[] = [1, 0.90, 0.8]
 const WOLF_START_ROW = Math.floor((LINES_PER_SIDE - 1) / 2)
 const WOLF_COL = 0
 

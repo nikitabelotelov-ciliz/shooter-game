@@ -72,13 +72,9 @@ function App() {
   return (
     <div className="app">
       <header className="hud">
-        <div>
-          <h1>Wolf &amp; Eggs</h1>
-          <p className="subtitle">Indirect control: shoot chickens, guide the wolf, save the eggs.</p>
-        </div>
         <div className="stats">
-          <div className="stat">Caught eggs: {gameState.caughtEggs}</div>
-          <div className="stat">Caught eggs/sec: {caughtPerSecond}</div>
+          <div className="stat">Eggs: {gameState.caughtEggs}</div>
+          <div className="stat">Rate: {caughtPerSecond}</div>
           <div className={`stat ${gameState.droppedEggs >= 2 ? 'danger' : ''}`}>
             Dropped eggs: {gameState.droppedEggs}/3
           </div>
